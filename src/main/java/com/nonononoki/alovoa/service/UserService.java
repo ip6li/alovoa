@@ -470,7 +470,7 @@ public class UserService {
         userRepo.saveAndFlush(user);
     }
 
-    public void updateUserMiscInfo(long infoValue, boolean activated) throws AlovoaException {
+    public Set<UserMiscInfo> updateUserMiscInfo(long infoValue, boolean activated) throws AlovoaException {
         User user = authService.getCurrentUser(true);
         Set<UserMiscInfo> list = user.getMiscInfos();
         if (list == null) {
@@ -494,6 +494,7 @@ public class UserService {
         }
         user.setMiscInfos(list);
         userRepo.saveAndFlush(user);
+        return list;
     }
 
     public void addInterest(String value) throws AlovoaException {
@@ -578,7 +579,7 @@ public class UserService {
         userRepo.saveAndFlush(user);
     }
 
-    public void addImage(String imgB64) throws AlovoaException, IOException {
+    public List<UserImage> addImage(String imgB64) throws AlovoaException, IOException {
         User user = authService.getCurrentUser(true);
         if (user.getImages() != null && user.getImages().size() < imageMax) {
 
@@ -587,7 +588,8 @@ public class UserService {
             img.setDate(new Date());
             img.setUser(user);
             user.getImages().add(img);
-            userRepo.saveAndFlush(user);
+            user = userRepo.saveAndFlush(user);
+            return user.getImages();
         } else {
             throw new AlovoaException("max_image_amount_exceeded");
         }
