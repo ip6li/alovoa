@@ -2,6 +2,8 @@ package com.nonononoki.alovoa.rest;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.nonononoki.alovoa.Tools;
+import com.nonononoki.alovoa.entity.user.UserImage;
+import com.nonononoki.alovoa.entity.user.UserMiscInfo;
 import com.nonononoki.alovoa.model.AlovoaException;
 import com.nonononoki.alovoa.model.ProfileOnboardingDto;
 import com.nonononoki.alovoa.model.UserDeleteAccountDto;
@@ -26,6 +28,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/user")
@@ -148,10 +151,12 @@ public class UserController {
         userService.updatePreferedGender(genderId, Tools.binaryStringToBoolean(activated));
     }
 
-    @PostMapping("/update/misc-info/{infoValue}/{activated}")
-    public void updateMiscInfo(@PathVariable long infoValue, @PathVariable String activated) throws AlovoaException {
-        userService.updateUserMiscInfo(infoValue, Tools.binaryStringToBoolean(activated));
+    @PostMapping("/update/misc-info2/{infoValue}/{activated}")
+        public Set<UserMiscInfo> updateMiscInfo(@PathVariable long infoValue, @PathVariable String activated) throws AlovoaException {
+        return userService.updateUserMiscInfo(infoValue, Tools.binaryStringToBoolean(activated));
     }
+
+
 
     @PostMapping("/interest/add/{value}")
     public void addInterest(@PathVariable String value) throws AlovoaException {
@@ -189,11 +194,11 @@ public class UserController {
     }
 
     @PostMapping(value = "/image/add", consumes = "text/plain")
-    public void addImage(@RequestBody String imageB64) throws AlovoaException, IOException {
+    public List<UserImage> addImage(@RequestBody String imageB64) throws AlovoaException, IOException {
         if (Tools.getBase64Size(imageB64) > mediaMaxSize) {
             throw new AlovoaException(AlovoaException.MAX_MEDIA_SIZE_EXCEEDED);
         }
-        userService.addImage(imageB64);
+        return userService.addImage(imageB64);
     }
 
     @PostMapping("/image/delete/{imageId}")

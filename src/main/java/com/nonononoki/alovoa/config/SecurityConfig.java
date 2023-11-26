@@ -173,6 +173,7 @@ public class SecurityConfig {
                 .expiredSessionStrategy(getSessionInformationExpiredStrategy())
                 .sessionRegistry(sessionRegistry())
         );
+        http.securityContext((securityContext) -> securityContext.requireExplicitSave(false));
 
         http.csrf(AbstractHttpConfigurer::disable);
 
@@ -199,7 +200,9 @@ public class SecurityConfig {
 				if (authority instanceof OidcUserAuthority oidcUserAuthority) {
                     logger.trace("userAuthoritiesMapper oidc path");
                     OidcIdToken idToken = oidcUserAuthority.getIdToken();
+                    logger.trace(String.format("idToken: %s", idToken.toString()));
 					OidcUserInfo userInfo = oidcUserAuthority.getUserInfo();
+                    logger.trace(String.format("userInfo: %s", userInfo.toString()));
 					// Map the claims found in idToken and/or userInfo
 					// to one or more GrantedAuthority's and add it to mappedAuthorities
                     getGroupMembership(mappedAuthorities, oidcUserAuthority.getAttributes());
@@ -219,8 +222,12 @@ public class SecurityConfig {
 	}
 
     private void getGroupMembership(Set<GrantedAuthority> mappedAuthorities, Map<String, Object> attributes) {
-        ArrayList<String> roles = (ArrayList<String>) attributes.get("groups");
-        if (roles!=null && roles.contains(oauthRoleAdmin)) {
+        ArrayList<String> roles = new ArrayList<>();
+        ((ArrayList<?>) attributes.get("groups")).forEach((v) -> {
+            roles.add(String.valueOf(v));
+        });
+
+        if (!roles.isEmpty() && roles.contains(oauthRoleAdmin)) {
             logger.info(String.format("User %s is Admin", attributes.get("email")));
             mappedAuthorities.add(new SimpleGrantedAuthority(ROLE_ADMIN));
         } else {
