@@ -17,53 +17,76 @@ import com.nonononoki.alovoa.service.RegisterService;
 @Controller
 public class RegisterResource {
 
-	@Autowired
-	private RegisterService registerService;
+    private boolean facebookEnabled;
+    private boolean googleEnabled;
+    private boolean keycloakEnabled;
 
-	@Autowired
-	private GenderRepository genderRepo;
+    @Autowired
+    private RegisterService registerService;
 
-	@Autowired
-	private UserIntentionRepository userIntentionRepo;
+    @Autowired
+    private GenderRepository genderRepo;
 
-	@Autowired
-	private AuthService authService;
+    @Autowired
+    private UserIntentionRepository userIntentionRepo;
 
-	@Value("${app.captcha.register.enabled}")
-	private String captchaRegisterEnabled;
+    @Autowired
+    private AuthService authService;
 
-	public static final String URL = "/register";
+    @Value("${spring.security.oauth2.client.registration.facebook.client-id:#{null}}")
+    private void facebookEnabled(String clientId) {
+        this.facebookEnabled = clientId != null;
+    }
 
-	@GetMapping(URL)
-	public ModelAndView register() throws AlovoaException {
+    @Value("${spring.security.oauth2.client.registration.google.client-id:#{null}}")
+    private void googleEnabled(String clientId) {
+        this.googleEnabled = clientId != null;
+    }
 
-		User user = authService.getCurrentUser();
-		if (user != null) {
-			return new ModelAndView("redirect:" + ProfileResource.URL);
-		}
-		ModelAndView mav = new ModelAndView("register");
-		mav.addObject("genders", genderRepo.findAll());
-		mav.addObject("intentions", userIntentionRepo.findAll());
-		mav.addObject("captchaRegisterEnabled", Boolean.parseBoolean(captchaRegisterEnabled));
-		return mav;
-	}
+    @Value("${spring.security.oauth2.client.registration.keycloak.client-id:#{null}}")
+    private void ip6liEnabled(String clientId) {
+        this.keycloakEnabled = clientId != null;
+    }
 
-	public ModelAndView registerOauth(String firstName) {
-		ModelAndView mav = new ModelAndView("register-oauth");
-		mav.addObject("genders", genderRepo.findAll());
-		mav.addObject("intentions", userIntentionRepo.findAll());
-		mav.addObject("firstName", firstName);
-		return mav;
-	}
+    @Value("${app.local.login.enabled}")
+    private String localLoginEnabled;
 
-	@GetMapping("/register/confirm/{tokenString}")
-	public String registerConfirm(@PathVariable String tokenString) {
-		try {
-			registerService.registerConfirm(tokenString);
-			return "redirect:/?registration-confirm-success";
-		} catch (Exception e) {
-			return "redirect:/?registration-confirm-failed";
-		}
 
-	}
+    public static final String URL = "/register";
+
+    @GetMapping(URL)
+    public ModelAndView register() throws AlovoaException {
+
+        User user = authService.getCurrentUser();
+        if (user != null) {
+            return new ModelAndView("redirect:" + ProfileResource.URL);
+        }
+        ModelAndView mav = new ModelAndView("register");
+        mav.addObject("genders", genderRepo.findAll());
+        mav.addObject("intentions", userIntentionRepo.findAll());
+        mav.addObject("facebookEnabled", facebookEnabled);
+        mav.addObject("googleEnabled", googleEnabled);
+        mav.addObject("keycloakEnabled", keycloakEnabled);
+        mav.addObject("localLoginEnabled", Boolean.parseBoolean(localLoginEnabled));
+        return mav;
+    }
+
+    public ModelAndView registerOauth(String firstName) {
+        ModelAndView mav = new ModelAndView("register-oauth");
+        mav.addObject("genders", genderRepo.findAll());
+        mav.addObject("intentions", userIntentionRepo.findAll());
+        mav.addObject("firstName", firstName);
+        return mav;
+    }
+
+    @GetMapping("/register/confirm/{tokenString}")
+    public String registerConfirm(@PathVariable String tokenString) {
+        try {
+            registerService.registerConfirm(tokenString);
+            return "redirect:/?registration-confirm-success";
+        } catch (Exception e) {
+            return "redirect:/?registration-confirm-failed";
+        }
+
+    }
 }
