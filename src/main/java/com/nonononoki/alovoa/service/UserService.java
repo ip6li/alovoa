@@ -119,6 +119,8 @@ public class UserService {
     private long userDeleteDuration;
     @Value("${app.intention.delay}")
     private long intentionDelay;
+    @Value("${app.like.message.length}")
+    private int likeMessageLength;
 
     public static void removeUserDataCascading(User user, UserDeleteParams userDeleteParam) {
 
@@ -304,7 +306,12 @@ public class UserService {
 
     public void deleteAccountConfirm(UserDeleteAccountDto dto)
             throws MessagingException, IOException, AlovoaException, NoSuchAlgorithmException {
-        User user = authService.getCurrentUser(true);
+        User user = userRepo.findByEmail(Tools.cleanEmail(dto.getEmail()));
+
+        if (user == null) {
+            throw new AlovoaException(ExceptionHandler.USER_NOT_FOUND);
+        }
+
         UserDeleteToken deleteToken = user.getDeleteToken();
 
         if (!dto.isConfirm() || deleteToken == null) {
@@ -312,8 +319,6 @@ public class UserService {
         }
 
         String userTokenString = deleteToken.getContent();
-
-        dto.setEmail(Tools.cleanEmail(dto.getEmail()));
 
         long ms = new Date().getTime();
         if (ms - user.getDeleteToken().getDate().getTime() > userDeleteDuration) {
@@ -323,10 +328,6 @@ public class UserService {
         if (!dto.getTokenString().equals(userTokenString)) {
             LOGGER.debug("Expected:" + userTokenString + ". Got: " + dto.getTokenString());
             throw new AlovoaException("deletion_wrong_token");
-        }
-
-        if (!dto.getEmail().equals(user.getEmail())) {
-            throw new AlovoaException("deletion_wrong_email");
         }
 
         if (!captchaService.isValid(dto.getCaptchaId(), dto.getCaptchaText())) {
@@ -340,7 +341,6 @@ public class UserService {
 
         removeUserDataCascading(user, userDeleteParam);
 
-        user = authService.getCurrentUser(true);
         user = userRepo.saveAndFlush(user);
         userRepo.delete(user);
         userRepo.flush();
@@ -658,7 +658,7 @@ public class UserService {
         return Tools.B64IMAGEPREFIX + fileType + Tools.B64PREFIX + base64bytes;
     }
 
-    public void likeUser(String idEnc) throws AlovoaException, GeneralSecurityException, IOException, JoseException {
+    public void likeUser(String idEnc, String message) throws AlovoaException, GeneralSecurityException, IOException, JoseException {
         User user = encodedIdToUser(idEnc);
         User currUser = authService.getCurrentUser(true);
 
@@ -678,6 +678,10 @@ public class UserService {
             throw new AlovoaException(ExceptionHandler.USER_NOT_COMPATIBLE);
         }
 
+        if(message != null && message.length() > likeMessageLength) {
+            throw new AlovoaException("max_length_exceeded");
+        }
+
         if (userLikeRepo.findByUserFromAndUserTo(currUser, user) == null) {
             UserLike like = new UserLike();
             like.setDate(new Date());
@@ -690,6 +694,7 @@ public class UserService {
             not.setDate(new Date());
             not.setUserFrom(currUser);
             not.setUserTo(user);
+            not.setMessage(message);
             currUser.getNotifications().add(not);
             notificationService.newLike(user);
 
