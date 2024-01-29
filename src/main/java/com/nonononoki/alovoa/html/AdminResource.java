@@ -46,6 +46,7 @@ public class AdminResource {
 
         ModelAndView mav = new ModelAndView("admin");
 
+        userReportRepo.deleteAll(userReportRepo.findByUserToIsNull());
         List<UserReport> reports = userReportRepo.findTop20ByOrderByDateAsc();
 
         for (UserReport r : reports) {

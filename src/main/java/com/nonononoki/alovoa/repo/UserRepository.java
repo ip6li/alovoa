@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,7 +15,7 @@ import com.nonononoki.alovoa.entity.User;
 import com.nonononoki.alovoa.model.UserSearchRequest;
 
 public interface UserRepository extends JpaRepository<User, Long> {
-
+	
 	User findByEmail(String email);
 
 	long countByConfirmed(boolean confirmed);
