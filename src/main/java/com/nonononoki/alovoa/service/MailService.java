@@ -38,6 +38,9 @@ public class MailService {
     @Value("${app.domain}")
     private String appDomain;
 
+    @Value("${app.url.front-end}")
+    private String appFrontend;
+
     @Value("${app.company.name}")
     private String companyName;
 
@@ -83,6 +86,7 @@ public class MailService {
         String text = template.replace("MAIL_BODY", body);
         text = text.replace("COMPANY_NAME", companyName);
         text = text.replace("SRC_IMAGE", imgSrc);
+        text = text.replace("HREF_APP_FRONTEND", appFrontend);
         text = text.replace("HREF_WEBSITE", hrefWebsite);
         text = text.replace("HREF_DONATE", hrefDonate);
 
@@ -133,6 +137,27 @@ public class MailService {
                 locale);
         String body = messageSource.getMessage("backend.mail.account-confirmed.body",
                 new String[]{user.getFirstName(), appName, appDomain}, "", locale);
+        sendMail(user.getEmail(), defaultFrom, subject, body);
+    }
+
+    public void sendLikeNotificationMail(User user){
+        Locale locale = Tools.getUserLocale(user);
+        String subject = messageSource.getMessage("backend.mail.like.subject", new String[]{}, locale);
+        String body = messageSource.getMessage("backend.mail.like.body", new String[]{user.getFirstName()}, locale);
+        sendMail(user.getEmail(), defaultFrom, subject, body);
+    }
+
+    public void sendMatchNotificationMail(User user){
+        Locale locale = Tools.getUserLocale(user);
+        String subject = messageSource.getMessage("backend.mail.match.subject", new String[]{}, locale);
+        String body = messageSource.getMessage("backend.mail.match.body", new String[]{user.getFirstName()}, locale);
+        sendMail(user.getEmail(), defaultFrom, subject, body);
+    }
+
+    public void sendChatNotificationMail(User user, User currUser, String message){
+        Locale locale = Tools.getUserLocale(user);
+        String subject = messageSource.getMessage("backend.mail.chat.subject", new String[]{}, locale);
+        String body = messageSource.getMessage("backend.mail.chat.body", new String[]{currUser.getFirstName(), user.getFirstName(), message},locale);
         sendMail(user.getEmail(), defaultFrom, subject, body);
     }
 }

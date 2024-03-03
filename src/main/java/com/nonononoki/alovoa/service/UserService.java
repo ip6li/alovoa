@@ -121,6 +121,8 @@ public class UserService {
     private long intentionDelay;
     @Value("${app.like.message.length}")
     private int likeMessageLength;
+    @Value("${app.search.ignore-intention}")
+    private boolean ignoreIntention;
 
     public static void removeUserDataCascading(User user, UserDeleteParams userDeleteParam) {
 
@@ -555,18 +557,6 @@ public class UserService {
         return interests;
     }
 
-    public void updateAccentColor(String accentColor) throws AlovoaException {
-        User user = authService.getCurrentUser(true);
-        user.setAccentColor(accentColor);
-        userRepo.saveAndFlush(user);
-    }
-
-    public void updateUiDesign(String uiDesign) throws AlovoaException {
-        User user = authService.getCurrentUser(true);
-        user.setUiDesign(uiDesign);
-        userRepo.saveAndFlush(user);
-    }
-
     public void updateShowZodiac(int showZodiac) throws AlovoaException {
         User user = authService.getCurrentUser(true);
         user.setShowZodiac(showZodiac == 1);
@@ -674,11 +664,11 @@ public class UserService {
             throw new AlovoaException("is_blocked");
         }
 
-        if (!Tools.usersCompatible(currUser, user)) {
+        if (!Tools.usersCompatible(currUser, user, ignoreIntention)) {
             throw new AlovoaException(ExceptionHandler.USER_NOT_COMPATIBLE);
         }
 
-        if(message != null && message.length() > likeMessageLength) {
+        if (message != null && message.length() > likeMessageLength) {
             throw new AlovoaException("max_length_exceeded");
         }
 
@@ -705,7 +695,9 @@ public class UserService {
             userRepo.saveAndFlush(user);
             userRepo.saveAndFlush(currUser);
 
-            if (user.getLikes().stream().anyMatch(o -> o.getUserTo().getId().equals(currUser.getId()))) {
+            final boolean isMatch = user.getLikes().stream().anyMatch(o -> o.getUserTo().getId().equals(currUser.getId()));
+
+            if (isMatch) {
                 Conversation convo = new Conversation();
                 convo.setUsers(new ArrayList<>());
                 convo.setDate(new Date());
@@ -716,15 +708,20 @@ public class UserService {
                 conversationRepo.saveAndFlush(convo);
 
                 notificationService.newMatch(user);
-                notificationService.newMatch(currUser);
 
                 user.getConversations().add(convo);
                 currUser.getConversations().add(convo);
 
                 userRepo.saveAndFlush(currUser);
                 userRepo.saveAndFlush(user);
-            }
 
+                if (user.getUserSettings().isEmailLike()) {
+                    mailService.sendMatchNotificationMail(user);
+                }
+
+            } else if (user.getUserSettings().isEmailLike()) {
+                mailService.sendLikeNotificationMail(user);
+            }
         }
     }
 

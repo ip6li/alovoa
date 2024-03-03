@@ -124,6 +124,8 @@ public class User implements UserDetails {
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "user")
     private List<UserInterest> interests;
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "user")
+    private List<UserPrompt> prompts;
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "user")
     private List<UserImage> images;
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "user")
     @JsonIgnore
@@ -175,6 +177,8 @@ public class User implements UserDetails {
     @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.REMOVE}, mappedBy = "userYes")
     @JsonIgnore
     private List<UserVerificationPicture> verificationYes;
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    private UserSettings userSettings;
 
     @Deprecated
     public User() {
@@ -222,6 +226,10 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return !disabled;
+    }
+
+    public UserSettings getUserSettings() {
+        return Objects.requireNonNullElseGet(userSettings, () -> new UserSettings(this));
     }
 
     public int getPreferedMinAge() {
