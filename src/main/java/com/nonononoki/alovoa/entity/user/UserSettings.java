@@ -1,5 +1,6 @@
 package com.nonononoki.alovoa.entity.user;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nonononoki.alovoa.entity.User;
 import jakarta.persistence.*;
 import lombok.EqualsAndHashCode;
@@ -18,12 +19,13 @@ public class UserSettings {
     @GeneratedValue(strategy= GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @OneToOne
     private User user;
 
-    private boolean emailLike = true;
+    private boolean emailLike = false;
 
-    private boolean emailChat = true;
+    private boolean emailChat = false;
 
     public UserSettings(User user) {
         this.user = user;
