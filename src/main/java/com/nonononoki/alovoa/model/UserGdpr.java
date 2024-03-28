@@ -10,8 +10,6 @@ import java.util.Set;
 @Data
 public class UserGdpr {
 
-    long numberProfileViews;
-    long numberSearches;
     private boolean confirmed;
     private boolean disabled;
     private int preferedMinAge;
@@ -78,9 +76,6 @@ public class UserGdpr {
         u.setDonations(user.getDonations());
         u.setMessageSent(user.getMessageSent());
         u.setDates(user.getDates());
-
-        u.setNumberProfileViews(user.getNumberProfileViews());
-        u.setNumberSearches(user.getNumberSearches());
 
         u.setShowZodiac(user.isShowZodiac());
         u.setPrompts(user.getPrompts());
