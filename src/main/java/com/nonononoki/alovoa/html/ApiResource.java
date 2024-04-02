@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.ModelAndView;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -68,12 +69,10 @@ public class ApiResource {
 
     private static final long MAX_RESULTS = 50;
 
-    @Value("${app.media.max-size}")
+    @Value("${app.image.max-size}")
     private int mediaMaxSize;
-
     @Value("${app.interest.max}")
     private int interestMaxSize;
-
     @Value("${app.search.ignore-intention}")
     private boolean ignoreIntention;
 
@@ -211,6 +210,10 @@ public class ApiResource {
         map.addAttribute("user", userDto);
         map.addAttribute("currUser", currUserDto);
         map.addAttribute("compatible", Tools.usersCompatible(user, userView, ignoreIntention));
+
+        int age = Tools.calcUserAge(user);
+        boolean isLegal = age >= Tools.AGE_LEGAL;
+        map.addAttribute("isLegal", isLegal);
 
         return map;
     }

@@ -118,32 +118,24 @@ public class AdminService {
                 .currentUser(user).user(u).userService(userService).build());
     }
 
-    public void removeImages(String id) throws AlovoaException, NumberFormatException, InvalidKeyException,
-            IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException {
+    public void removeImages(UUID uuid) throws AlovoaException, NumberFormatException {
         checkRights();
-
-        User user = userRepo.findById(UserDto.decodeIdThrowing(id, textEncryptor)).orElse(null);
-
+        User user = userService.findUserByUuid(uuid);
         if (user == null) {
             throw new AlovoaException(ExceptionHandler.USER_NOT_FOUND);
         }
-
         user.setProfilePicture(null);
         user.setVerificationPicture(null);
         user.getImages().clear();
         userRepo.saveAndFlush(user);
     }
 
-    public void removeDescription(String id) throws AlovoaException, NumberFormatException, InvalidKeyException,
-            IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException {
+    public void removeDescription(UUID uuid) throws AlovoaException, NumberFormatException {
         checkRights();
-
-        User user = userRepo.findById(UserDto.decodeIdThrowing(id, textEncryptor)).orElse(null);
-
+        User user = userService.findUserByUuid(uuid);
         if (user == null) {
             throw new AlovoaException(ExceptionHandler.USER_NOT_FOUND);
         }
-
         user.setDescription(null);
         userRepo.saveAndFlush(user);
     }
@@ -210,10 +202,8 @@ public class AdminService {
         User user = userRepo.findByEmail(Tools.cleanEmail(dto.getEmail()));
         if (user == null) {
             try {
-                Optional<Long> idOpt = UserDto.decodeId(dto.getEmail(), textEncryptor);
-                if (idOpt.isPresent()) {
-                    user = userRepo.findById(idOpt.get()).orElse(null);
-                }
+                UUID uuid = UUID.fromString(dto.getEmail());
+                user = userService.findUserByUuid(uuid);
             } catch (Exception ignored) {
             }
         }
@@ -250,10 +240,8 @@ public class AdminService {
         User user = userRepo.findByEmail(Tools.cleanEmail(URLDecoder.decode(email, StandardCharsets.UTF_8)));
         if (user == null) {
             try {
-                Optional<Long> idOpt = UserDto.decodeId(email, textEncryptor);
-                if (idOpt.isPresent()) {
-                    user = userRepo.findById(idOpt.get()).orElse(null);
-                }
+                UUID uuid = UUID.fromString(email);
+                user = userService.findUserByUuid(uuid);
             } catch (Exception ignored) {
             }
         }
