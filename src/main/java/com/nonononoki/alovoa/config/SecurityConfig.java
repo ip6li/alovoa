@@ -2,6 +2,8 @@ package com.nonononoki.alovoa.config;
 
 import com.nonononoki.alovoa.component.*;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -14,10 +16,19 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.oidc.web.logout.OidcClientInitiatedLogoutSuccessHandler;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
+import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
+import org.springframework.security.oauth2.core.user.OAuth2UserAuthority;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices;
@@ -31,19 +42,22 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
     @Value("${app.text.key}")
     private String key;
 
     @Value("${app.login.remember.key}")
     private String rememberKey;
+
+    @Value("${app.domain}")
+    private String appDomain;
 
     @Autowired
     private Environment env;
@@ -54,7 +68,15 @@ public class SecurityConfig {
     @Autowired
     private CustomUserDetailsService customUserDetailsService;
 
+    @Autowired
+    private ClientRegistrationRepository clientRegistrationRepository;
+
     private final AuthenticationConfiguration configuration;
+
+    private static String oauthRoleAdmin;
+
+    @Value("${app.oauth2.adminrolename:}")
+    private void setOauthAdminRole(String s) { oauthRoleAdmin = s; }
 
     public static final String ROLE_USER = "ROLE_USER";
     public static final String ROLE_ADMIN = "ROLE_ADMIN";
@@ -67,6 +89,15 @@ public class SecurityConfig {
 
     public static String getRoleAdmin() {
         return ROLE_ADMIN;
+    }
+
+    private OidcClientInitiatedLogoutSuccessHandler oidcLogoutSuccessHandler() {
+        OidcClientInitiatedLogoutSuccessHandler successHandler =
+                new OidcClientInitiatedLogoutSuccessHandler(clientRegistrationRepository);
+
+        successHandler.setPostLogoutRedirectUri(appDomain);
+
+        return successHandler;
     }
 
     @Bean
@@ -119,10 +150,19 @@ public class SecurityConfig {
                 ).logout(logout ->
                         logout.deleteCookies("remove")
                                 .invalidateHttpSession(true)
+                                .clearAuthentication(true)
                                 .deleteCookies(COOKIE_SESSION, COOKIE_REMEMBER)
                                 .logoutUrl("/logout")
+                                .logoutSuccessHandler(oidcLogoutSuccessHandler())
                                 .logoutSuccessUrl("/?logout")
-                ).oauth2Login(login -> login.loginPage("/login").defaultSuccessUrl("/login/oauth2/success"))
+                )
+                .oauth2Login(
+                        login -> login
+                                .userInfoEndpoint(userInfo -> userInfo
+                                        .userAuthoritiesMapper(this.userAuthoritiesMapper()))
+                                .loginPage("/login")
+                                .defaultSuccessUrl("/login/oauth2/success")
+                )
                 .addFilterBefore(authenticationFilter(), UsernamePasswordAuthenticationFilter.class)
                 .rememberMe(remember -> remember.rememberMeServices(oAuthRememberMeServices()).key(rememberKey))
                 .sessionManagement(session -> session.maximumSessions(10).expiredSessionStrategy(getSessionInformationExpiredStrategy())
@@ -133,6 +173,47 @@ public class SecurityConfig {
             http.requiresChannel(channel -> channel.anyRequest().requiresSecure());
         }
         return http.build();
+    }
+
+    private GrantedAuthoritiesMapper userAuthoritiesMapper() {
+        return (authorities) -> {
+            Set<GrantedAuthority> mappedAuthorities = new HashSet<>();
+            logger.info(String.format("userAuthoritiesMapper authorities: %s", authorities.getClass().getName()));
+            authorities.forEach(authority -> {
+                if (authority instanceof OidcUserAuthority oidcUserAuthority) {
+                    logger.trace("userAuthoritiesMapper oidc path");
+                    OidcIdToken idToken = oidcUserAuthority.getIdToken();
+                    OidcUserInfo userInfo = oidcUserAuthority.getUserInfo();
+                    logger.trace(String.format("idToken: %s", idToken));
+                    logger.trace(String.format("userInfo: %s", userInfo.toString()));
+                    // Map the claims found in idToken and/or userInfo
+                    // to one or more GrantedAuthority's and add it to mappedAuthorities
+                    getGroupMembership(mappedAuthorities, oidcUserAuthority.getAttributes());
+                } else if (authority instanceof OAuth2UserAuthority oauth2UserAuthority) {
+                    logger.trace("userAuthoritiesMapper oauth2 path");
+                    getGroupMembership(mappedAuthorities, oauth2UserAuthority.getAttributes());
+                } else {
+                    authorities.forEach((v) -> {
+                        logger.trace(String.format("userAuthoritiesMapper other: %s", v));
+                    });
+                    logger.trace("userAuthoritiesMapper other path");
+                }
+            });
+
+            return mappedAuthorities;
+        };
+    }
+
+    private void getGroupMembership(Set<GrantedAuthority> mappedAuthorities, Map<String, Object> attributes) {
+        ArrayList<String> roles = new ArrayList<>();
+        ((ArrayList<?>) attributes.get("groups")).forEach((v) ->
+                roles.add(v.toString()));
+        if (!roles.isEmpty() && roles.contains(oauthRoleAdmin)) {
+            logger.info(String.format("User %s is Admin", attributes.get("email")));
+            mappedAuthorities.add(new SimpleGrantedAuthority(ROLE_ADMIN));
+        } else {
+            logger.trace(String.format("User %s is not Admin", attributes.get("email")));
+        }
     }
 
     @Bean
