@@ -11,8 +11,6 @@ import java.util.Set;
 @Data
 public class UserGdpr {
 
-    private boolean confirmed;
-    private boolean disabled;
     private int preferedMinAge;
     private int preferedMaxAge;
     private Double locationLatitude;
@@ -34,14 +32,13 @@ public class UserGdpr {
     private List<UserImage> images;
     private List<UserPrompt> prompts;
     private List<UserDonation> donations;
+    private Set<UserMiscInfo> miscInfo;
     private List<Message> messageSent;
     private UserDates dates;
     private boolean showZodiac;
 
     public static UserGdpr userToUserGdpr(User user) {
         UserGdpr u = new UserGdpr();
-        u.setConfirmed(user.isConfirmed());
-        u.setDisabled(user.isDisabled());
         u.setPreferedMinAge(user.getPreferedMinAge());
         u.setPreferedMaxAge(user.getPreferedMaxAge());
         u.setTotalDonations(user.getTotalDonations());
@@ -60,6 +57,7 @@ public class UserGdpr {
         u.setIntention(user.getIntention());
         u.setInterests(user.getInterests());
         u.setPreferedGenders(user.getPreferedGenders());
+        u.setMiscInfo(user.getMiscInfos());
 
         u.setAudio(user.getAudio());
         u.setProfilePicture(user.getProfilePicture());

@@ -1,12 +1,12 @@
 package com.nonononoki.alovoa.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
-
+import com.nonononoki.alovoa.entity.Captcha;
+import com.nonononoki.alovoa.entity.User;
+import com.nonononoki.alovoa.entity.user.UserHide;
+import com.nonononoki.alovoa.repo.CaptchaRepository;
+import com.nonononoki.alovoa.repo.ConversationRepository;
+import com.nonononoki.alovoa.repo.UserHideRepository;
+import com.nonononoki.alovoa.repo.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,20 +14,16 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.nonononoki.alovoa.Tools;
-import com.nonononoki.alovoa.entity.Captcha;
-import com.nonononoki.alovoa.entity.Contact;
-import com.nonononoki.alovoa.entity.User;
-import com.nonononoki.alovoa.entity.user.UserHide;
-import com.nonononoki.alovoa.repo.CaptchaRepository;
-import com.nonononoki.alovoa.repo.ContactRepository;
-import com.nonononoki.alovoa.repo.ConversationRepository;
-import com.nonononoki.alovoa.repo.UserHideRepository;
-import com.nonononoki.alovoa.repo.UserRepository;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -36,9 +32,6 @@ class ScheduleServiceTest {
 
 	@Autowired
 	private CaptchaRepository captchaRepo;
-
-	@Autowired
-	private ContactRepository contactRepo;
 
 	@Autowired
 	private UserHideRepository userHideRepo;
@@ -52,14 +45,13 @@ class ScheduleServiceTest {
 	@Autowired
 	private ScheduleService scheduleService;
 
-	// @MockBean
 	@Autowired
 	private CaptchaService captchaService;
 
-	@MockBean
+	@MockitoBean
 	private AuthService authService;
 
-	@MockBean
+	@MockitoBean
 	private MailService mailService;
 
 	@Value("${app.schedule.delay.captcha}")
@@ -67,9 +59,6 @@ class ScheduleServiceTest {
 
 	@Value("${app.schedule.delay.hide}")
 	private long hideDelay;
-
-	@Value("${app.schedule.delay.contact}")
-	private long contactDelay;
 
 	@Value("${app.first-name.length-max}")
 	private int firstNameLengthMax;
@@ -122,25 +111,6 @@ class ScheduleServiceTest {
 		assertEquals(2, catchaRepo.count());
 		scheduleService.cleanCaptcha(currentDate);
 		assertEquals(1, catchaRepo.count());
-
-		// CONTACT
-		Contact contactOld = new Contact();
-		contactOld.setEmail("test" + Tools.MAIL_TEST_DOMAIN);
-		contactOld.setHidden(false);
-		contactOld.setMessage("test message");
-		contactOld.setDate(new Date(currentDateTime - contactDelay - 1));
-		contactRepo.saveAndFlush(contactOld);
-
-		Contact contactNew = new Contact();
-		contactNew.setEmail("test" + Tools.MAIL_TEST_DOMAIN);
-		contactNew.setHidden(false);
-		contactNew.setMessage("test message");
-		contactNew.setDate(new Date(currentDateTime - contactDelay));
-		contactRepo.saveAndFlush(contactNew);
-
-		assertEquals(2, contactRepo.count());
-		scheduleService.cleanContact(currentDate);
-		assertEquals(1, contactRepo.count());
 
 		// USERHIDE
 		User user1 = testUsers.get(1);

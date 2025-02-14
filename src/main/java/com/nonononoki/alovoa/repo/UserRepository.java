@@ -1,9 +1,9 @@
 package com.nonononoki.alovoa.repo;
 
 import com.nonononoki.alovoa.entity.User;
+import com.nonononoki.alovoa.entity.user.Gender;
 import com.nonononoki.alovoa.model.UserSearchRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,90 +15,187 @@ import java.util.UUID;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
-	User findByEmail(String email);
+    String SEARCH_SELECT_QUERY = "SELECT u FROM User u ";
+    String SEARCH_JOIN_MISC_QUERY = "LEFT JOIN u.miscInfos misc ";
+    String SEARCH_JOIN_INTEREST_QUERY = "LEFT JOIN u.interests interest ";
+    String SEARCH_BASE_QUERY = "WHERE u.disabled = FALSE AND u.admin = FALSE AND u.confirmed = TRUE AND u.intention IS NOT NULL AND "
+            + "u.locationLatitude IS NOT NULL AND u.locationLongitude IS NOT NULL "
+            + "AND u.profilePicture IS NOT NULL AND :preferedGender MEMBER OF u.preferedGenders "
+            + "AND TIMESTAMPDIFF(YEAR, u.dates.dateOfBirth, CURDATE()) + u.preferedMaxAge >= :age AND TIMESTAMPDIFF(YEAR, u.dates.dateOfBirth, CURDATE()) + u.preferedMinAge <= :age AND u.dates.dateOfBirth >= :minDate AND u.dates.dateOfBirth <= :maxDate "
+            + "AND u.id NOT IN (:likeIds) AND u.id NOT IN (:likeIds) AND u.id NOT IN (:hideIds) "
+            + "AND u.id NOT IN (:blockIds) "
+            + "AND u.id NOT IN (:blockedByIds) "
+            + "AND u.gender.id IN (:genderIds) ";
+    String SEARCH_INTENTION_QUERY = "AND u.intention.id IN (:intentionIds) ";
+    String SEARCH_MISC_INFO_QUERY = "AND misc.value IN (:miscInfoIds) ";
+    String SEARCH_INTEREST_QUERY = "AND interest.text IN (:interestTexts)  ";
+    String SEARCH_LOCATION_QUERY = "AND u.locationLatitude BETWEEN :latitudeFrom AND :latitudeTo AND u.locationLongitude BETWEEN :longitudeFrom AND :longitudeTo ";
 
-	User findByUuid(UUID uuid);
+    @Query(value = SEARCH_SELECT_QUERY + SEARCH_BASE_QUERY + SEARCH_LOCATION_QUERY)
+    List<User> usersSearchBaseQuery(@Param("age") int age, @Param("minDate") Date minDate, @Param("maxDate") Date maxDate,
+                                    @Param("preferedGender") Gender preferedGender,
+                                    @Param("latitudeFrom") Double latitudeFrom, @Param("latitudeTo") Double latitudeTo,
+                                    @Param("longitudeFrom") Double longitudeFrom, @Param("longitudeTo") Double longitudeTo,
+                                    @Param("likeIds") Collection<Long> likeIds,
+                                    @Param("hideIds") Collection<Long> hideIds, @Param("blockIds") Collection<Long> blockIds,
+                                    @Param("blockedByIds") Collection<Long> blockedByIds, @Param("genderIds") Collection<Long> genderIds,
+                                    Pageable page);
 
-	long countByConfirmed(boolean confirmed);
+    @Query(value = SEARCH_SELECT_QUERY + SEARCH_BASE_QUERY + SEARCH_LOCATION_QUERY + SEARCH_INTENTION_QUERY)
+    List<User> usersSearchNoExtrasQuery(@Param("age") int age,
+                                        @Param("minDate") Date minDate,
+                                        @Param("maxDate") Date maxDate,
+                                        @Param("preferedGender") Gender preferedGender,
+                                        @Param("latitudeFrom") Double latitudeFrom,
+                                        @Param("latitudeTo") Double latitudeTo,
+                                        @Param("longitudeFrom") Double longitudeFrom,
+                                        @Param("longitudeTo") Double longitudeTo,
+                                        @Param("likeIds") Collection<Long> likeIds,
+                                        @Param("hideIds") Collection<Long> hideIds,
+                                        @Param("blockIds") Collection<Long> blockIds,
+                                        @Param("blockedByIds") Collection<Long> blockedByIds,
+                                        @Param("genderIds") Collection<Long> genderIds,
+                                        @Param("intentionIds") Collection<Long> intentionIds,
+                                        Pageable page);
 
-	long countByConfirmedAndGenderId(boolean confirmed, long genderId);
+    @Query(value = SEARCH_SELECT_QUERY + SEARCH_JOIN_MISC_QUERY + SEARCH_JOIN_INTEREST_QUERY + SEARCH_BASE_QUERY + SEARCH_LOCATION_QUERY + SEARCH_INTENTION_QUERY + SEARCH_MISC_INFO_QUERY + SEARCH_INTEREST_QUERY)
+    List<User> usersSearchInterestMiscQuery(@Param("age") int age,
+                                            @Param("minDate") Date minDate,
+                                            @Param("maxDate") Date maxDate,
+                                            @Param("preferedGender") Gender preferedGender,
+                                            @Param("latitudeFrom") Double latitudeFrom,
+                                            @Param("latitudeTo") Double latitudeTo,
+                                            @Param("longitudeFrom") Double longitudeFrom,
+                                            @Param("longitudeTo") Double longitudeTo,
+                                            @Param("likeIds") Collection<Long> likeIds,
+                                            @Param("hideIds") Collection<Long> hideIds,
+                                            @Param("blockIds") Collection<Long> blockIds,
+                                            @Param("blockedByIds") Collection<Long> blockedByIds,
+                                            @Param("genderIds") Collection<Long> genderIds,
+                                            @Param("intentionIds") Collection<Long> intentionIds,
+                                            @Param("miscInfoIds") Collection<Integer> miscInfos,
+                                            @Param("interestTexts") Collection<String> interests,
+                                            Pageable page);
 
-	default List<User> usersSearch(UserSearchRequest request, Pageable page) {
-		return usersSearchQuery(request.getAge(), request.getMinDateDob(), request.getMaxDateDob(), request.getMinLat(),
-				request.getMaxLat(), request.getMinLong(), request.getMaxLong(), request.getIntentionId(),
-				request.getLikeIds(), request.getHideIds(), request.getBlockIds(), request.getGenderIds(), page);
-	}
+    @Query(value = SEARCH_SELECT_QUERY + SEARCH_JOIN_INTEREST_QUERY + SEARCH_BASE_QUERY + SEARCH_LOCATION_QUERY + SEARCH_INTENTION_QUERY + SEARCH_INTEREST_QUERY)
+    List<User> usersSearchInterestQuery(@Param("age") int age,
+                                        @Param("minDate") Date minDate,
+                                        @Param("maxDate") Date maxDate,
+                                        @Param("preferedGender") Gender preferedGender,
+                                        @Param("latitudeFrom") Double latitudeFrom,
+                                        @Param("latitudeTo") Double latitudeTo,
+                                        @Param("longitudeFrom") Double longitudeFrom,
+                                        @Param("longitudeTo") Double longitudeTo,
+                                        @Param("likeIds") Collection<Long> likeIds,
+                                        @Param("hideIds") Collection<Long> hideIds,
+                                        @Param("blockIds") Collection<Long> blockIds,
+                                        @Param("blockedByIds") Collection<Long> blockedByIds,
+                                        @Param("genderIds") Collection<Long> genderIds,
+                                        @Param("intentionIds") Collection<Long> intentionIds,
+                                        @Param("interestTexts") Collection<String> interests,
+                                        Pageable page);
 
-	List<User> findByConfirmedIsFalseAndAdminFalseAndDatesCreationDateBefore(Date date);
+    @Query(value = SEARCH_SELECT_QUERY + SEARCH_JOIN_MISC_QUERY + SEARCH_BASE_QUERY + SEARCH_LOCATION_QUERY + SEARCH_INTENTION_QUERY + SEARCH_MISC_INFO_QUERY)
+    List<User> usersSearchMiscQuery(@Param("age") int age,
+                                    @Param("minDate") Date minDate,
+                                    @Param("maxDate") Date maxDate,
+                                    @Param("preferedGender") Gender preferedGender,
+                                    @Param("latitudeFrom") Double latitudeFrom,
+                                    @Param("latitudeTo") Double latitudeTo,
+                                    @Param("longitudeFrom") Double longitudeFrom,
+                                    @Param("longitudeTo") Double longitudeTo,
+                                    @Param("likeIds") Collection<Long> likeIds,
+                                    @Param("hideIds") Collection<Long> hideIds,
+                                    @Param("blockIds") Collection<Long> blockIds,
+                                    @Param("blockedByIds") Collection<Long> blockedByIds,
+                                    @Param("genderIds") Collection<Long> genderIds,
+                                    @Param("intentionIds") Collection<Long> intentionIds,
+                                    @Param("miscInfoIds") Collection<Integer> miscInfos,
+                                    Pageable page);
 
-	@Query(value = "SELECT u FROM User u WHERE u.disabled = FALSE AND u.admin = FALSE AND u.confirmed = TRUE AND u.intention IS NOT NULL AND "
-			+ "u.locationLatitude IS NOT NULL AND u.locationLongitude IS NOT NULL AND u.profilePicture IS NOT NULL "
-			+ "AND TIMESTAMPDIFF(YEAR, u.dates.dateOfBirth, CURDATE()) + u.preferedMaxAge >= :age AND TIMESTAMPDIFF(YEAR, u.dates.dateOfBirth, CURDATE()) + u.preferedMinAge <= :age AND u.dates.dateOfBirth >= :minDate AND u.dates.dateOfBirth <= :maxDate "
-			+ "AND u.locationLatitude BETWEEN :latitudeFrom AND :latitudeTo AND u.locationLongitude BETWEEN :longitudeFrom AND :longitudeTo "
-			+ "AND CASE WHEN :intentionId < 0 THEN 1=1 ELSE :intentionId = u.intention.id END "
-			+ "AND u.id NOT IN (:likeIds) AND u.id NOT IN (:likeIds) AND u.id NOT IN (:hideIds) "
-			+ "AND u.id NOT IN (:blockIds) AND u.gender.id IN (:genderIds)")
-	List<User> usersSearchQuery(@Param("age") int age, @Param("minDate") Date minDate, @Param("maxDate") Date maxDate,
-			@Param("latitudeFrom") Double latitudeFrom, @Param("latitudeTo") Double latitudeTo,
-			@Param("longitudeFrom") Double longitudeFrom, @Param("longitudeTo") Double longitudeTo,
-			@Param("intentionId") long intentionId, @Param("likeIds") Collection<Long> likeIds,
-			@Param("hideIds") Collection<Long> hideIds, @Param("blockIds") Collection<Long> blockIds,
-			@Param("genderIds") Collection<Long> genderIds, Pageable page);
+    @Query(value = SEARCH_SELECT_QUERY + SEARCH_BASE_QUERY)
+    List<User> usersSearchIgnoreLocation(@Param("age") int age, @Param("minDate") Date minDate, @Param("maxDate") Date maxDate,
+                                         @Param("preferedGender") Gender preferedGender, @Param("likeIds") Collection<Long> likeIds,
+                                         @Param("hideIds") Collection<Long> hideIds,
+                                         @Param("blockIds") Collection<Long> blockIds,
+                                         @Param("blockedByIds") Collection<Long> blockedByIds,
+                                         @Param("genderIds") Collection<Long> genderIds, Pageable page);
 
-	default List<User> usersSearchAllIgnoreLocation(UserSearchRequest request, Pageable page) {
-		return usersSearchIgnoreLocation(
-				request.getAge(), request.getMinDateDob(), request.getMaxDateDob(),
-				request.getIntentionId(), request.getLikeIds(), request.getHideIds(), request.getBlockIds(),
-				request.getGenderIds(), page);
-	}
+    User findByEmail(String email);
 
-	@Query(value = "SELECT u FROM User u WHERE u.disabled = FALSE AND u.admin = FALSE AND u.confirmed = TRUE AND u.intention IS NOT NULL AND "
-			+ "u.locationLatitude IS NOT NULL AND u.locationLongitude IS NOT NULL AND u.profilePicture IS NOT NULL "
-			+ "AND TIMESTAMPDIFF(YEAR, u.dates.dateOfBirth, CURDATE()) + u.preferedMaxAge >= :age AND TIMESTAMPDIFF(YEAR, u.dates.dateOfBirth, CURDATE()) + u.preferedMinAge <= :age AND u.dates.dateOfBirth >= :minDate AND u.dates.dateOfBirth <= :maxDate "
-			+ "AND CASE WHEN :intentionId < 0 THEN 1=1 ELSE :intentionId = u.intention.id END "
-			+ "AND u.id NOT IN (:likeIds) AND u.id NOT IN (:likeIds) AND u.id NOT IN (:hideIds) "
-			+ "AND u.id NOT IN (:blockIds) AND u.gender.id IN (:genderIds)")
-	List<User> usersSearchIgnoreLocation(@Param("age") int age, @Param("minDate") Date minDate, @Param("maxDate") Date maxDate,
-			@Param("intentionId") long intentionId, @Param("likeIds") Collection<Long> likeIds,
-			@Param("hideIds") Collection<Long> hideIds, @Param("blockIds") Collection<Long> blockIds,
-			@Param("genderIds") Collection<Long> genderIds, Pageable page);
+    User findByUuid(UUID uuid);
 
-	default List<User> usersSearchAllIgnoreLocationAndIntention(UserSearchRequest request, Sort sort) {
-		return findTop200ByDisabledFalseAndAdminFalseAndConfirmedTrueAndIntentionNotNullAndLocationLatitudeNotNullAndProfilePictureNotNullAndDatesDateOfBirthGreaterThanEqualAndDatesDateOfBirthLessThanEqualAndIdNotInAndIdNotInAndIdNotInAndGenderIdIn(
-				request.getMinDateDob(), request.getMaxDateDob(), request.getLikeIds(), request.getHideIds(),
-				request.getBlockIds(), request.getGenderIds(), sort);
-	}
+    long countByConfirmed(boolean confirmed);
 
-	// almost all, must have complete profile and not blocked
-	default List<User> usersSearchAllIgnoreAll(UserSearchRequest request, Sort sort) {
-		return findTop50ByDisabledFalseAndAdminFalseAndConfirmedTrueAndIntentionNotNullAndLocationLatitudeNotNullAndProfilePictureNotNullAndDatesDateOfBirthGreaterThanEqualAndDatesDateOfBirthLessThanEqualAndIdNotInAndIdNotInAndIdNotIn(
-				request.getMinDateDob(), request.getMaxDateDob(), request.getLikeIds(), request.getHideIds(),
-				request.getBlockIds(), sort);
-	}
+    long countByConfirmedAndGenderId(boolean confirmed, long genderId);
 
-	default List<User> usersDonate(Date minDate, Date maxDate) {
-		return findTop20ByDisabledFalseAndAdminFalseAndConfirmedTrueAndIntentionNotNullAndLocationLatitudeNotNullAndProfilePictureNotNullAndDatesDateOfBirthGreaterThanEqualAndDatesDateOfBirthLessThanEqualOrderByTotalDonationsDesc(
-				minDate, maxDate);
-	}
+    default List<User> usersSearchNoExtras(UserSearchRequest request, Pageable page) {
+        return usersSearchNoExtrasQuery(request.getAge(), request.getMinDateDob(), request.getMaxDateDob(), request.getPreferedGender(), request.getMinLat(),
+                request.getMaxLat(), request.getMinLong(), request.getMaxLong(),
+                request.getLikeIds(), request.getHideIds(), request.getBlockIds(), request.getBlockedByIds(), request.getGenderIds(),
+                request.getIntentionIds(),
+                page);
+    }
 
-	default List<User> adminSearch() {
-		return findTop100ByDisabledFalseAndAdminFalseAndConfirmedTrueAndIntentionNotNullAndLocationLatitudeNotNullAndProfilePictureNotNullOrderByDatesCreationDateDesc();
-	}
+    default List<User> usersSearchInterestMisc(UserSearchRequest request, Pageable page) {
+        return usersSearchInterestMiscQuery(request.getAge(), request.getMinDateDob(), request.getMaxDateDob(), request.getPreferedGender(),
+                request.getMinLat(), request.getMaxLat(), request.getMinLong(), request.getMaxLong(),
+                request.getLikeIds(), request.getHideIds(), request.getBlockIds(), request.getBlockedByIds(), request.getGenderIds(),
+                request.getIntentionIds(),
+                request.getMiscInfos(),
+                request.getInterests(),
+                page);
+    }
 
-	// used for sending mails to all
-	List<User> findByDisabledFalseAndAdminFalseAndConfirmedTrue();
+    default List<User> usersSearchInterest(UserSearchRequest request, Pageable page) {
+        return usersSearchInterestQuery(request.getAge(), request.getMinDateDob(), request.getMaxDateDob(), request.getPreferedGender(),
+                request.getMinLat(), request.getMaxLat(), request.getMinLong(), request.getMaxLong(),
+                request.getLikeIds(), request.getHideIds(), request.getBlockIds(), request.getBlockedByIds(), request.getGenderIds(),
+                request.getIntentionIds(),
+                request.getInterests(),
+                page);
+    }
 
-	List<User> findTop100ByDisabledFalseAndAdminFalseAndConfirmedTrueAndIntentionNotNullAndLocationLatitudeNotNullAndProfilePictureNotNullOrderByDatesCreationDateDesc();
+    default List<User> usersSearchMisc(UserSearchRequest request, Pageable page) {
+        return usersSearchMiscQuery(request.getAge(), request.getMinDateDob(), request.getMaxDateDob(), request.getPreferedGender(),
+                request.getMinLat(), request.getMaxLat(), request.getMinLong(), request.getMaxLong(),
+                request.getLikeIds(), request.getHideIds(), request.getBlockIds(), request.getBlockedByIds(), request.getGenderIds(),
+                request.getIntentionIds(),
+                request.getMiscInfos(),
+                page);
+    }
 
-	List<User> findTop200ByDisabledFalseAndAdminFalseAndConfirmedTrueAndIntentionNotNullAndLocationLatitudeNotNullAndProfilePictureNotNullAndDatesDateOfBirthGreaterThanEqualAndDatesDateOfBirthLessThanEqualAndIdNotInAndIdNotInAndIdNotInAndGenderIdIn(
-			Date min, Date max, Collection<Long> likeIds, Collection<Long> hideIds, Collection<Long> blockIds,
-			Collection<Long> genderIds, Sort sort);
+    default List<User> usersBaseSearch(UserSearchRequest request, Pageable page) {
+        return usersSearchBaseQuery(request.getAge(), request.getMinDateDob(), request.getMaxDateDob(), request.getPreferedGender(),
+                request.getMinLat(), request.getMaxLat(), request.getMinLong(), request.getMaxLong(),
+                request.getLikeIds(), request.getHideIds(), request.getBlockIds(), request.getBlockedByIds(), request.getGenderIds(),
+                page);
+    }
 
-	List<User> findTop50ByDisabledFalseAndAdminFalseAndConfirmedTrueAndIntentionNotNullAndLocationLatitudeNotNullAndProfilePictureNotNullAndDatesDateOfBirthGreaterThanEqualAndDatesDateOfBirthLessThanEqualAndIdNotInAndIdNotInAndIdNotIn(
-			Date min, Date max, Collection<Long> likeIds, Collection<Long> hideIds, Collection<Long> blockIds,
-			Sort sort);
+    List<User> findByConfirmedIsFalseAndAdminFalseAndDatesCreationDateBefore(Date date);
 
-	// users donate
-	List<User> findTop20ByDisabledFalseAndAdminFalseAndConfirmedTrueAndIntentionNotNullAndLocationLatitudeNotNullAndProfilePictureNotNullAndDatesDateOfBirthGreaterThanEqualAndDatesDateOfBirthLessThanEqualOrderByTotalDonationsDesc(
-			Date minDate, Date maxDate);
+    default List<User> usersSearchAllIgnoreLocation(UserSearchRequest request, Pageable page) {
+        return usersSearchIgnoreLocation(
+                request.getAge(), request.getMinDateDob(), request.getMaxDateDob(), request.getPreferedGender(),
+                request.getLikeIds(), request.getHideIds(), request.getBlockIds(),
+                request.getBlockedByIds(), request.getGenderIds(), page);
+    }
+
+    default List<User> usersDonate(Date minDate, Date maxDate) {
+        return findTop20ByDisabledFalseAndAdminFalseAndConfirmedTrueAndIntentionNotNullAndLocationLatitudeNotNullAndProfilePictureNotNullAndDatesDateOfBirthGreaterThanEqualAndDatesDateOfBirthLessThanEqualOrderByTotalDonationsDesc(
+                minDate, maxDate);
+    }
+
+    default List<User> adminSearch() {
+        return findTop100ByDisabledFalseAndAdminFalseAndConfirmedTrueAndIntentionNotNullAndLocationLatitudeNotNullAndProfilePictureNotNullOrderByDatesCreationDateDesc();
+    }
+
+    // used for sending mails to all
+    List<User> findByDisabledFalseAndAdminFalseAndConfirmedTrue();
+
+    List<User> findTop100ByDisabledFalseAndAdminFalseAndConfirmedTrueAndIntentionNotNullAndLocationLatitudeNotNullAndProfilePictureNotNullOrderByDatesCreationDateDesc();
+
+    // users donate
+    List<User> findTop20ByDisabledFalseAndAdminFalseAndConfirmedTrueAndIntentionNotNullAndLocationLatitudeNotNullAndProfilePictureNotNullAndDatesDateOfBirthGreaterThanEqualAndDatesDateOfBirthLessThanEqualOrderByTotalDonationsDesc(
+            Date minDate, Date maxDate);
 }

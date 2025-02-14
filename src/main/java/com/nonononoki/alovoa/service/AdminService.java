@@ -3,7 +3,6 @@ package com.nonononoki.alovoa.service;
 import com.nonononoki.alovoa.Tools;
 import com.nonononoki.alovoa.component.ExceptionHandler;
 import com.nonononoki.alovoa.component.TextEncryptorConverter;
-import com.nonononoki.alovoa.entity.Contact;
 import com.nonononoki.alovoa.entity.User;
 import com.nonononoki.alovoa.entity.user.UserDonation;
 import com.nonononoki.alovoa.entity.user.UserReport;
@@ -45,8 +44,6 @@ public class AdminService {
     @Autowired
     private UserRepository userRepo;
     @Autowired
-    private ContactRepository contactRepo;
-    @Autowired
     private UserLikeRepository userLikeRepo;
     @Autowired
     private UserHideRepository userHideRepo;
@@ -65,18 +62,6 @@ public class AdminService {
 
     @Value("${app.search.ignore-intention}")
     private boolean ignoreIntention;
-
-    public void hideContact(long id) throws AlovoaException {
-        checkRights();
-
-        Contact contact = contactRepo.findById(id).orElse(null);
-
-        if (contact == null) {
-            throw new AlovoaException("contact_not_found");
-        }
-        contact.setHidden(true);
-        contactRepo.saveAndFlush(contact);
-    }
 
     public void sendMailSingle(MailDto dto) throws AlovoaException {
         checkRights();
@@ -155,46 +140,7 @@ public class AdminService {
             throw new AlovoaException("user_is_admin");
         }
 
-        UserDeleteParams userDeleteParam = UserDeleteParams.builder().conversationRepo(conversationRepo)
-                .userBlockRepo(userBlockRepo).userHideRepo(userHideRepo).userLikeRepo(userLikeRepo)
-                .userNotificationRepo(userNotificationRepo).userRepo(userRepo).userReportRepo(userReportRepo)
-                .userVerificationPictureRepo(userVerificationPictureRepo).build();
-
-        try {
-            UserService.removeUserDataCascading(user, userDeleteParam);
-        } catch (Exception e) {
-            logger.warn(ExceptionUtils.getStackTrace(e));
-        }
-
-        user = userRepo.findByEmail(user.getEmail());
-
-        user.setAudio(null);
-        user.setDates(null);
-        user.setDeleteToken(null);
-        user.setDescription(null);
-        user.setLanguage(null);
-        user.setCountry(null);
         user.setDisabled(true);
-        user.getDonations().clear();
-        user.setFirstName(null);
-        user.setGender(null);
-        user.getImages().clear();
-        user.setIntention(null);
-        user.getInterests().clear();
-        user.setLocationLatitude(null);
-        user.setLocationLongitude(null);
-        user.setPassword(null);
-        user.setPasswordToken(null);
-        user.setPreferedGenders(null);
-        user.setPreferedMaxAge(0);
-        user.setPreferedMinAge(0);
-        user.setRegisterToken(null);
-        user.setTotalDonations(0);
-        user.setProfilePicture(null);
-        user.setVerificationCode(null);
-        user.setVerificationPicture(null);
-        user.setShowZodiac(false);
-        user.getPrompts().clear();
         userRepo.saveAndFlush(user);
     }
 
@@ -212,10 +158,6 @@ public class AdminService {
 
         if (user == null) {
             throw new AlovoaException(ExceptionHandler.USER_NOT_FOUND);
-        }
-
-        if (user.isDisabled()) {
-            throw new AlovoaException("user_is_banned");
         }
 
         if (user.isAdmin()) {

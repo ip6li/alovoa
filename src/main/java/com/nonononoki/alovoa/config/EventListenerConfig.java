@@ -1,5 +1,6 @@
 package com.nonononoki.alovoa.config;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -83,50 +84,43 @@ public class EventListenerConfig {
 	}
 
 	private void setDefaultUserMiscInfo() {
-		if(userMiscInfoRepo.count() == 0) {
-			UserMiscInfo drugsTobaccoInfo = new UserMiscInfo();
-			drugsTobaccoInfo.setValue(UserMiscInfo.DRUGS_TOBACCO);
-			
-			UserMiscInfo drugsAlcoholInfo = new UserMiscInfo();
-			drugsAlcoholInfo.setValue(UserMiscInfo.DRUGS_ALCOHOL);
-			
-			UserMiscInfo drugsCannabisInfo = new UserMiscInfo();
-			drugsCannabisInfo.setValue(UserMiscInfo.DRUGS_CANNABIS);
-			
-			UserMiscInfo drugsOtherInfo = new UserMiscInfo();
-			drugsOtherInfo.setValue(UserMiscInfo.DRUGS_OTHER);
-			
-			
-			UserMiscInfo relationshipSingleInfo = new UserMiscInfo();
-			relationshipSingleInfo.setValue(UserMiscInfo.RELATIONSHIP_SINGLE);
-			
-			UserMiscInfo relationshipTakenInfo = new UserMiscInfo();
-			relationshipTakenInfo.setValue(UserMiscInfo.RELATIONSHIP_TAKEN);
-						
-			UserMiscInfo relationshipOpenInfo = new UserMiscInfo();
-			relationshipOpenInfo.setValue(UserMiscInfo.RELATIONSHIP_OPEN);
-			
-			UserMiscInfo relationshipOtherInfo = new UserMiscInfo();
-			relationshipOtherInfo.setValue(UserMiscInfo.RELATIONSHIP_OTHER);
-			
-			
-			UserMiscInfo kidsNoInfo = new UserMiscInfo();
-			kidsNoInfo.setValue(UserMiscInfo.KIDS_NO);
-			
-			UserMiscInfo kidsYesInfo = new UserMiscInfo();
-			kidsYesInfo.setValue(UserMiscInfo.KIDS_YES);
-			
-			userMiscInfoRepo.saveAllAndFlush(Arrays.asList(
-					drugsTobaccoInfo,
-					drugsAlcoholInfo,
-					drugsCannabisInfo,
-					drugsOtherInfo,
-					relationshipSingleInfo,
-					relationshipTakenInfo,
-					relationshipOpenInfo,
-					relationshipOtherInfo,
-					kidsNoInfo,
-					kidsYesInfo));
+		List<UserMiscInfo> userMiscInfoList = new ArrayList<>(Arrays.asList(
+				new UserMiscInfo(UserMiscInfo.DRUGS_TOBACCO_YES),
+				new UserMiscInfo(UserMiscInfo.DRUGS_TOBACCO_NO),
+				new UserMiscInfo(UserMiscInfo.DRUGS_TOBACCO_SOMETIMES),
+				new UserMiscInfo(UserMiscInfo.DRUGS_ALCOHOL_YES),
+				new UserMiscInfo(UserMiscInfo.DRUGS_ALCOHOL_NO),
+				new UserMiscInfo(UserMiscInfo.DRUGS_ALCOHOL_SOMETIMES),
+				new UserMiscInfo(UserMiscInfo.DRUGS_CANNABIS_YES),
+				new UserMiscInfo(UserMiscInfo.DRUGS_CANNABIS_NO),
+				new UserMiscInfo(UserMiscInfo.DRUGS_CANNABIS_SOMETIMES),
+				new UserMiscInfo(UserMiscInfo.DRUGS_OTHER_YES),
+				new UserMiscInfo(UserMiscInfo.DRUGS_OTHER_NO),
+				new UserMiscInfo(UserMiscInfo.DRUGS_OTHER_SOMETIMES),
+				new UserMiscInfo(UserMiscInfo.RELATIONSHIP_SINGLE),
+				new UserMiscInfo(UserMiscInfo.RELATIONSHIP_TAKEN),
+				new UserMiscInfo(UserMiscInfo.RELATIONSHIP_OPEN),
+				new UserMiscInfo(UserMiscInfo.RELATIONSHIP_OTHER),
+				new UserMiscInfo(UserMiscInfo.KIDS_NO),
+				new UserMiscInfo(UserMiscInfo.KIDS_YES),
+				new UserMiscInfo(UserMiscInfo.RELATIONSHIP_TYPE_MONOGAMOUS),
+				new UserMiscInfo(UserMiscInfo.RELATIONSHIP_TYPE_POLYAMOROUS),
+				new UserMiscInfo(UserMiscInfo.GENDER_IDENTITY_CIS),
+				new UserMiscInfo(UserMiscInfo.GENDER_IDENTITY_TRANS),
+				new UserMiscInfo(UserMiscInfo.POLITICS_MODERATE),
+				new UserMiscInfo(UserMiscInfo.POLITICS_LEFT),
+				new UserMiscInfo(UserMiscInfo.POLITICS_RIGHT),
+				new UserMiscInfo(UserMiscInfo.RELIGION_NO),
+				new UserMiscInfo(UserMiscInfo.RELIGION_YES),
+				new UserMiscInfo(UserMiscInfo.FAMILY_WANT),
+				new UserMiscInfo(UserMiscInfo.FAMILY_NOT_WANT),
+				new UserMiscInfo(UserMiscInfo.FAMILY_NOT_UNSURE)
+		));
+
+		userMiscInfoList.removeIf(u -> userMiscInfoRepo.existsByValue(u.getValue()));
+
+		if(!userMiscInfoList.isEmpty()) {
+			userMiscInfoRepo.saveAllAndFlush(userMiscInfoList);
 		}
 	}
 

@@ -3,12 +3,9 @@ package com.nonononoki.alovoa.service;
 import com.nonononoki.alovoa.Tools;
 import com.nonononoki.alovoa.component.TextEncryptorConverter;
 import com.nonononoki.alovoa.entity.Captcha;
-import com.nonononoki.alovoa.entity.Contact;
 import com.nonononoki.alovoa.entity.User;
 import com.nonononoki.alovoa.entity.user.UserReport;
-import com.nonononoki.alovoa.model.ContactDto;
 import com.nonononoki.alovoa.model.MailDto;
-import com.nonononoki.alovoa.repo.ContactRepository;
 import com.nonononoki.alovoa.repo.ConversationRepository;
 import com.nonononoki.alovoa.repo.UserReportRepository;
 import com.nonononoki.alovoa.repo.UserRepository;
@@ -19,8 +16,8 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URLDecoder;
@@ -69,10 +66,10 @@ class AdminServiceTest {
 	@Value("${app.first-name.length-min}")
 	private int firstNameLengthMin;
 
-	@MockBean
+	@MockitoBean
 	private AuthService authService;
 
-	@MockBean
+	@MockitoBean
 	private MailService mailService;
 
 	@Autowired
@@ -80,9 +77,6 @@ class AdminServiceTest {
 
 	@Autowired
 	private ImprintService imprintService;
-
-	@Autowired
-	private ContactRepository contactRepo;
 
 	private List<User> testUsers;
 
@@ -123,8 +117,6 @@ class AdminServiceTest {
 		mailDto.setBody(mailBodySingle);
 		adminService.sendMailSingle(mailDto);
 
-		adminService.hideContact(contactTest().getId());
-
 		assertEquals(0, userReportRepo.count());
 		reportTest(user3, user2, adminUser);
 		assertEquals(1, userReportRepo.count());
@@ -143,20 +135,6 @@ class AdminServiceTest {
 		assertEquals(donationAmount, user2.getTotalDonations());
 		assertEquals(1, user2.getDonations().size());
 
-	}
-
-	private Contact contactTest() throws Exception {
-		assertEquals(0, contactRepo.count());
-		ContactDto contact = new ContactDto();
-		Captcha captcha = captchaService.generate();
-		contact.setCaptchaId(captcha.getId());
-		contact.setCaptchaText(captcha.getText());
-		String email = "test" + Tools.MAIL_TEST_DOMAIN;
-		contact.setEmail(email);
-		Contact c = imprintService.contact(contact);
-		assertEquals(1, contactRepo.count());
-
-		return c;
 	}
 
 	private UserReport reportTest(User user1, User user2, User adminUser) throws Exception {

@@ -27,7 +27,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -36,12 +35,21 @@ import javax.imageio.ImageIO;
 import javax.sound.sampled.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.security.*;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.List;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -55,6 +63,20 @@ public class UserService {
     private static final String MIME_WAV = "wav";
     private static final String MIME_MPEG = "mpeg";
     private static final String MIME_MP3 = "mp3";
+
+    private final Set<Long> drugsAlcoholMiscInfoSet = new HashSet<>(Set.of(UserMiscInfo.DRUGS_ALCOHOL_YES, UserMiscInfo.DRUGS_ALCOHOL_SOMETIMES, UserMiscInfo.DRUGS_ALCOHOL_NO));
+    private final Set<Long> drugsTobaccoMiscInfoSet = new HashSet<>(Set.of(UserMiscInfo.DRUGS_TOBACCO_YES, UserMiscInfo.DRUGS_TOBACCO_SOMETIMES, UserMiscInfo.DRUGS_TOBACCO_NO));
+    private final Set<Long> drugsCannabisMiscInfoSet = new HashSet<>(Set.of(UserMiscInfo.DRUGS_CANNABIS_YES, UserMiscInfo.DRUGS_CANNABIS_SOMETIMES, UserMiscInfo.DRUGS_CANNABIS_NO));
+    private final Set<Long> drugsOtherMiscInfoSet = new HashSet<>(Set.of(UserMiscInfo.DRUGS_OTHER_YES, UserMiscInfo.DRUGS_OTHER_SOMETIMES, UserMiscInfo.DRUGS_OTHER_NO));
+
+    private final Set<Long> kidsMiscInfoSet = new HashSet<>(Set.of(UserMiscInfo.KIDS_NO, UserMiscInfo.KIDS_YES));
+    private final Set<Long> relationshipMiscInfoSet = new HashSet<>(Set.of(UserMiscInfo.RELATIONSHIP_SINGLE, UserMiscInfo.RELATIONSHIP_TAKEN, UserMiscInfo.RELATIONSHIP_OPEN));
+    private final Set<Long> politicsMiscInfoSet = new HashSet<>(Set.of(UserMiscInfo.POLITICS_MODERATE, UserMiscInfo.POLITICS_LEFT, UserMiscInfo.POLITICS_RIGHT));
+    private final Set<Long> genderIdentityMiscInfoSet = new HashSet<>(Set.of(UserMiscInfo.GENDER_IDENTITY_CIS, UserMiscInfo.GENDER_IDENTITY_TRANS));
+    private final Set<Long> religionMiscInfoSet = new HashSet<>(Set.of(UserMiscInfo.RELIGION_NO, UserMiscInfo.RELIGION_YES));
+    private final Set<Long> familyMiscInfoSet = new HashSet<>(Set.of(UserMiscInfo.FAMILY_WANT, UserMiscInfo.FAMILY_NOT_WANT, UserMiscInfo.FAMILY_NOT_UNSURE));
+    private final Set<Long> relationshipTypeMiscInfoSet = new HashSet<>(Set.of(UserMiscInfo.RELATIONSHIP_TYPE_POLYAMOROUS, UserMiscInfo.RELATIONSHIP_TYPE_MONOGAMOUS));
+
     @Autowired
     private AuthService authService;
     @Autowired
@@ -145,116 +167,65 @@ public class UserService {
         UserVerificationPictureRepository userVerificationPictureRepo = userDeleteParam.getUserVerificationPictureRepo();
 
         // DELETE USER LIKE
-        for (UserLike like : userLikeRepo.findByUserFrom(user)) {
-            User u = like.getUserTo();
-            if (u != null && u.getLikedBy() != null) {
-                u.getLikedBy().remove(like);
-                userRepo.save(u);
-            }
-            like.setUserTo(null);
-            userLikeRepo.save(like);
-
-        }
-        for (UserLike like : userLikeRepo.findByUserTo(user)) {
+        userLikeRepo.deleteAll(userLikeRepo.findByUserFrom(user));
+        List<UserLike> likeTos = userLikeRepo.findByUserTo(user);
+        userLikeRepo.deleteAll(likeTos);
+        userLikeRepo.flush();
+        for (UserLike like : likeTos) {
             User u = like.getUserFrom();
             if (u != null && u.getLikes() != null) {
                 u.getLikes().remove(like);
                 userRepo.save(u);
             }
-            like.setUserFrom(null);
-            userLikeRepo.save(like);
         }
         userRepo.flush();
-        userLikeRepo.flush();
 
         // DELETE USER NOTIFICATION
-        for (UserNotification notification : userNotificationRepo.findByUserFrom(user)) {
-            User u = notification.getUserTo();
-            if (u != null && u.getNotificationsFrom() != null) {
-                u.getNotificationsFrom().remove(notification);
-                userRepo.save(u);
-            }
-            notification.setUserTo(null);
-            userNotificationRepo.save(notification);
-        }
-        for (UserNotification notificaton : userNotificationRepo.findByUserTo(user)) {
-            User u = notificaton.getUserFrom();
+        userNotificationRepo.deleteAll(userNotificationRepo.findByUserFrom(user));
+        List<UserNotification> notificationTos = userNotificationRepo.findByUserTo(user);
+        userNotificationRepo.deleteAll(notificationTos);
+        userNotificationRepo.flush();
+        for (UserNotification notification : notificationTos) {
+            User u = notification.getUserFrom();
             if (u != null && u.getNotifications() != null) {
-                u.getNotifications().remove(notificaton);
+                u.getNotifications().remove(notification);
                 userRepo.save(u);
             }
-            notificaton.setUserFrom(null);
-            userNotificationRepo.save(notificaton);
         }
         userRepo.flush();
-        userNotificationRepo.flush();
 
         // DELETE USER HIDE
-        for (UserHide hide : userHideRepo.findByUserFrom(user)) {
-            User u = hide.getUserTo();
-            if (u != null && u.getHiddenByUsers() != null) {
-                u.getHiddenByUsers().remove(hide);
-                userRepo.save(u);
-            }
-            hide.setUserTo(null);
-            userHideRepo.save(hide);
-        }
-        for (UserHide hide : userHideRepo.findByUserTo(user)) {
+        userHideRepo.deleteAll(userHideRepo.findByUserFrom(user));
+        List<UserHide> hideTos = userHideRepo.findByUserTo(user);
+        userHideRepo.deleteAll(hideTos);
+        userHideRepo.flush();
+        for (UserHide hide : hideTos) {
             User u = hide.getUserFrom();
             if (u != null && u.getHiddenUsers() != null) {
                 u.getHiddenUsers().remove(hide);
                 userRepo.save(u);
             }
-
-            hide.setUserFrom(null);
-            userHideRepo.save(hide);
         }
         userRepo.flush();
-        userHideRepo.flush();
 
         // DELETE USER BLOCK
-        for (UserBlock block : userBlockRepo.findByUserFrom(user)) {
-            User u = block.getUserTo();
-            if (u != null && u.getBlockedByUsers() != null) {
-                u.getBlockedByUsers().remove(block);
-                userRepo.save(u);
-            }
-            block.setUserTo(null);
-            userBlockRepo.save(block);
-        }
-        for (UserBlock block : userBlockRepo.findByUserTo(user)) {
-            User u = block.getUserFrom();
-            if (u != null && u.getBlockedUsers() != null) {
-                u.getBlockedUsers().remove(block);
-                userRepo.save(u);
-            }
-            block.setUserFrom(null);
-            userBlockRepo.save(block);
-        }
-        userRepo.flush();
+        userBlockRepo.deleteAll(userBlockRepo.findByUserFrom(user));
+        userBlockRepo.deleteAll(userBlockRepo.findByUserTo(user));
         userBlockRepo.flush();
 
         // DELETE USER REPORT
-        for (UserReport report : userReportRepo.findByUserFrom(user)) {
-            User u = report.getUserTo();
-            if (u != null && u.getReportedByUsers() != null) {
-                u.getReportedByUsers().remove(report);
-                userRepo.save(u);
-            }
-            report.setUserTo(null);
-            userReportRepo.save(report);
-        }
-        for (UserReport report : userReportRepo.findByUserTo(user)) {
+        userReportRepo.deleteAll(userReportRepo.findByUserFrom(user));
+        List<UserReport> reportTos = userReportRepo.findByUserTo(user);
+        userReportRepo.deleteAll(reportTos);
+        userReportRepo.flush();
+        for (UserReport report : reportTos) {
             User u = report.getUserFrom();
             if (u != null && u.getReported() != null) {
                 u.getReported().remove(report);
                 userRepo.save(u);
             }
-            report.setUserFrom(null);
-            userReportRepo.save(report);
         }
         userRepo.flush();
-        userReportRepo.flush();
 
         // DELETE USER CONVERSATION
         for (Conversation c : conversationRepo.findByUsers_Id(user.getId())) {
@@ -266,6 +237,7 @@ public class UserService {
             }
             conversationRepo.delete(c);
         }
+        conversationRepo.flush();
 
         // DELETE USER VERIFICATION
         for (UserVerificationPicture v : userVerificationPictureRepo.findByUserNo(user)) {
@@ -278,7 +250,6 @@ public class UserService {
         }
 
         userVerificationPictureRepo.flush();
-        conversationRepo.flush();
         userRepo.flush();
     }
 
@@ -365,6 +336,7 @@ public class UserService {
         mailService.sendAccountDeleteConfirm(user);
     }
 
+    @SuppressWarnings("deprecation")
     public void updateProfilePicture(byte[] bytes, String mimeType) throws AlovoaException, IOException {
         User user = authService.getCurrentUser(true);
         user.setVerificationPicture(null);
@@ -386,10 +358,10 @@ public class UserService {
         userRepo.saveAndFlush(user);
     }
 
-    public void onboarding(byte[] bytes, ProfileOnboardingDto model) throws AlovoaException, IOException {
+    public User onboarding(byte[] bytes, ProfileOnboardingDto model) throws AlovoaException, IOException {
         User user = authService.getCurrentUser(true);
         if (user.getProfilePicture() != null || user.getDescription() != null) {
-            return;
+            return null;
         }
 
         Date now = new Date();
@@ -416,7 +388,10 @@ public class UserService {
             return interest;
         }).toList()));
 
-        userRepo.saveAndFlush(user);
+        user.getUserSettings().setEmailLike(model.isNotificationLike());
+        user.getUserSettings().setEmailChat(model.isNotificationChat());
+
+        return userRepo.saveAndFlush(user);
     }
 
     public void updateDescription(String description) throws AlovoaException {
@@ -495,29 +470,47 @@ public class UserService {
 
     public Set<UserMiscInfo> updateUserMiscInfo(long infoValue, boolean activated) throws AlovoaException {
         User user = authService.getCurrentUser(true);
+
         Set<UserMiscInfo> list = user.getMiscInfos();
         if (list == null) {
             list = new HashSet<>();
         }
 
-        UserMiscInfo info = userMiscInfoRepo.findByValue(infoValue);
+        if (kidsMiscInfoSet.contains(infoValue)) {
+            list.removeIf(conditionToRemoveIfExistent(kidsMiscInfoSet, infoValue));
+        } else if (relationshipMiscInfoSet.contains(infoValue)) {
+            list.removeIf(conditionToRemoveIfExistent(relationshipMiscInfoSet, infoValue));
+        } else if (drugsAlcoholMiscInfoSet.contains(infoValue)) {
+            list.removeIf(conditionToRemoveIfExistent(drugsAlcoholMiscInfoSet, infoValue));
+        } else if (drugsTobaccoMiscInfoSet.contains(infoValue)) {
+            list.removeIf(conditionToRemoveIfExistent(drugsAlcoholMiscInfoSet, infoValue));
+        } else if (drugsCannabisMiscInfoSet.contains(infoValue)) {
+            list.removeIf(conditionToRemoveIfExistent(drugsCannabisMiscInfoSet, infoValue));
+        } else if (drugsOtherMiscInfoSet.contains(infoValue)) {
+            list.removeIf(conditionToRemoveIfExistent(drugsOtherMiscInfoSet, infoValue));
+        } else if (politicsMiscInfoSet.contains(infoValue)) {
+            list.removeIf(conditionToRemoveIfExistent(politicsMiscInfoSet, infoValue));
+        } else if (genderIdentityMiscInfoSet.contains(infoValue)) {
+            list.removeIf(conditionToRemoveIfExistent(genderIdentityMiscInfoSet, infoValue));
+        } else if (religionMiscInfoSet.contains(infoValue)) {
+            list.removeIf(conditionToRemoveIfExistent(religionMiscInfoSet, infoValue));
+        } else if (familyMiscInfoSet.contains(infoValue)) {
+            list.removeIf(conditionToRemoveIfExistent(familyMiscInfoSet, infoValue));
+        } else if (relationshipTypeMiscInfoSet.contains(infoValue)) {
+            list.removeIf(conditionToRemoveIfExistent(relationshipTypeMiscInfoSet, infoValue));
+        }
+
         if (activated) {
+            UserMiscInfo info = userMiscInfoRepo.findByValue(infoValue);
             list.add(info);
-
-            if (infoValue >= UserMiscInfo.KIDS_NO && infoValue <= UserMiscInfo.KIDS_YES) {
-                list.removeIf(o -> o.getValue() != infoValue && o.getValue() >= UserMiscInfo.KIDS_NO
-                        && o.getValue() <= UserMiscInfo.KIDS_YES);
-            } else if (infoValue >= UserMiscInfo.RELATIONSHIP_SINGLE && infoValue <= UserMiscInfo.RELATIONSHIP_OTHER) {
-                list.removeIf(o -> o.getValue() != infoValue && o.getValue() >= UserMiscInfo.RELATIONSHIP_SINGLE
-                        && o.getValue() <= UserMiscInfo.RELATIONSHIP_OTHER);
-            }
-
-        } else {
-            list.remove(info);
         }
         user.setMiscInfos(list);
         userRepo.saveAndFlush(user);
         return list;
+    }
+
+    private Predicate<UserMiscInfo> conditionToRemoveIfExistent(final Set<Long> options, final long infoValue) {
+        return c -> options.contains(c.getValue()) && c.getValue() != infoValue;
     }
 
     public void addInterest(String value) throws AlovoaException {
@@ -695,17 +688,17 @@ public class UserService {
             like.setUserTo(user);
             currUser.getLikes().add(like);
 
-            UserNotification not = new UserNotification();
-            not.setContent(UserNotification.USER_LIKE);
-            not.setDate(new Date());
-            not.setUserFrom(currUser);
-            not.setUserTo(user);
-            not.setMessage(message);
-            currUser.getNotifications().add(not);
-
-            user.getDates().setNotificationDate(new Date());
-
-            currUser.getHiddenUsers().removeIf(hide -> hide.getUserTo().getId().equals(user.getId()));
+            if (!currUser.isDisabled()) {
+                UserNotification not = new UserNotification();
+                not.setContent(UserNotification.USER_LIKE);
+                not.setDate(new Date());
+                not.setUserFrom(currUser);
+                not.setUserTo(user);
+                not.setMessage(message);
+                currUser.getNotifications().add(not);
+                user.getDates().setNotificationDate(new Date());
+                currUser.getHiddenUsers().removeIf(hide -> hide.getUserTo().getId().equals(user.getId()));
+            }
 
             userRepo.saveAndFlush(user);
             userRepo.saveAndFlush(currUser);
@@ -713,7 +706,7 @@ public class UserService {
             final boolean isMatch = user.getLikes().stream().filter(o -> o.getUserTo().getId() != null)
                     .anyMatch(o -> o.getUserTo().getId().equals(currUser.getId()));
 
-            if (isMatch) {
+            if (!currUser.isDisabled() && isMatch) {
                 Conversation convo = new Conversation();
                 convo.setUsers(new ArrayList<>());
                 convo.setDate(new Date());
@@ -733,7 +726,7 @@ public class UserService {
                     mailService.sendMatchNotificationMail(user);
                 }
 
-            } else if (user.getUserSettings().isEmailLike()) {
+            } else if (!currUser.isDisabled() && user.getUserSettings().isEmailLike()) {
                 mailService.sendLikeNotificationMail(user);
             }
         }
@@ -751,7 +744,7 @@ public class UserService {
             currUser.getHiddenUsers().add(hide);
             userRepo.saveAndFlush(currUser);
 
-            if(user.getLikes().stream().anyMatch(l -> l.getUserTo().getId().equals(currUser.getId()))) {
+            if (user.getLikes().stream().anyMatch(l -> l.getUserTo().getId().equals(currUser.getId()))) {
                 blockUser(uuid);
             }
         }
@@ -871,6 +864,7 @@ public class UserService {
         return new ResponseEntity<>(resource, headers, HttpStatus.OK);
     }
 
+    @SuppressWarnings("deprecation")
     public String getAudio(UUID uuid)
             throws NumberFormatException, AlovoaException {
         User user = findUserByUuid(uuid);
@@ -886,6 +880,7 @@ public class UserService {
         userRepo.saveAndFlush(user);
     }
 
+    @SuppressWarnings("deprecation")
     public void updateAudio(byte[] bytes, String mimeType)
             throws AlovoaException, UnsupportedAudioFileException, IOException {
         User user = authService.getCurrentUser(true);
@@ -995,22 +990,32 @@ public class UserService {
         userRepo.saveAndFlush(user);
     }
 
+    public void updateUserLocation(Double latitude, Double longitude) throws AlovoaException {
+        User user = authService.getCurrentUser(true);
+        // rounding to improve privacy
+        DecimalFormat df = new DecimalFormat("#.##");
+        df.setDecimalFormatSymbols(DecimalFormatSymbols.getInstance(Locale.ENGLISH));
+        user.setLocationLatitude(Double.valueOf(df.format(latitude)));
+        user.setLocationLongitude(Double.valueOf(df.format(longitude)));
+        userRepo.saveAndFlush(user);
+    }
+
     public void updateProfilePictureUUID(UserProfilePicture image, UUID uuid) {
-        if(image.getUuid() == null) {
+        if (image.getUuid() == null) {
             image.setUuid(uuid);
             userProfilePictureRepository.saveAndFlush(image);
         }
     }
 
     public void updateUUID(User user, UUID uuid) {
-        if(user.getUuid() == null) {
+        if (user.getUuid() == null) {
             user.setUuid(uuid);
             userRepo.saveAndFlush(user);
         }
     }
 
     public void updateImageUUID(UserImage image, UUID uuid) {
-        if(image.getUuid() == null) {
+        if (image.getUuid() == null) {
             image.setUuid(uuid);
             userImageRepo.saveAndFlush(image);
         }
@@ -1018,7 +1023,7 @@ public class UserService {
 
     public User findUserByUuid(UUID uuid) throws AlovoaException {
         User user = userRepo.findByUuid(uuid);
-        if(user == null) {
+        if (user == null) {
             throw new AlovoaException("user_not_found: " + uuid);
         }
         return user;
